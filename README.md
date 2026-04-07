@@ -29,25 +29,24 @@ O TMP36 no pino **A0** usa a fórmula: `temp = (tensão_mV - 500) / 10`.
 ## Estrutura do Projeto
 
 ```
-estacao_meteorologica/
+src/
+├── app.py
+├── database.py
+├── serial_reader.py
+├── gerar_dados.py
+├── schema.sql
+├── static/
+│   ├── css/
+│   │   └── style.css
+│   └── js/
+│       └── main.js
+├── templates/
+│   ├── base.html
+│   ├── index.html
+│   ├── historico.html
+│   └── editar.html
 ├── arduino/
-│   └── estacao.ino          # Sketch: TMP36 + Potenciômetro → JSON Serial
-└── src/
-    ├── app.py               # Servidor Flask (API REST + renderização HTML)
-    ├── database.py          # Todas as funções SQLite (CRUD + estatísticas)
-    ├── serial_reader.py     # Lê porta serial → POST para API
-    ├── schema.sql           # DDL do banco de dados
-    ├── gerar_dados.py       # Popula banco com 30 leituras de exemplo
-    ├── dados.db             # Banco SQLite (gerado automaticamente)
-    ├── static/
-    │   └── (arquivos estáticos adicionais, se necessário)
-    └── templates/
-        ├── base.html        # Layout base (nav, fontes, CSS global)
-        ├── index.html       # Painel principal + gráfico + cards
-        ├── historico.html   # Tabela paginada + exclusão
-        ├── editar.html      # Formulário de edição (PUT via fetch)
-        ├── detalhe.html     # Detalhe de uma leitura
-        └── 404.html         # Página de erro
+│   └── estacao.ino
 ```
 
 ---
