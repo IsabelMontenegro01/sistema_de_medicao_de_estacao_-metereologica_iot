@@ -47,7 +47,7 @@ Potenciômetro
 
 ## Dados mockados
 
-Como a integração serial exige Arduino físico, a aplicação usa dados gerados pelo `gerar_dados.py` para demonstração. Ele insere 30 leituras no banco com variação temporal simulada (uma leitura a cada 5 minutos, retroativa):
+Os dados usados aqui são mockados porque a integração serial exige um Arduino físico; para facilitar testes e demonstração sem hardware, a aplicação usa o script gerar_dados.py para inserir leituras no banco. O script adiciona 30 entradas com variação temporal simulada (uma leitura a cada 5 minutos, retroativa):
 
 | Campo | Faixa |
 |---|---|
@@ -110,7 +110,7 @@ curl -X DELETE http://localhost:5000/leituras/1
 
 ---
 
-## Leitura serial com Arduino físico
+## Uso opcional com Arduino físico
 
 Configure as variáveis de ambiente antes de rodar o `serial_reader.py`:
 
