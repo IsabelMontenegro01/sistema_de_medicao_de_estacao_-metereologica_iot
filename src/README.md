@@ -1,10 +1,10 @@
-# 🌦️ Estação Meteorológica IoT
+# Estação Meteorológica IoT
 
 Sistema de medição meteorológica com Arduino (simulado no Tinkercad), API REST com Flask, banco SQLite e interface web.
 
 ---
 
-## 🏛️ Decisões de Arquitetura
+## Decisões de Arquitetura
 
 ### Hardware
 | Componente original | Substituição no Tinkercad | Motivo |
@@ -26,7 +26,7 @@ O TMP36 no pino **A0** usa a fórmula: `temp = (tensão_mV - 500) / 10`.
 
 ---
 
-## 📁 Estrutura do Projeto
+## Estrutura do Projeto
 
 ```
 estacao_meteorologica/
@@ -52,7 +52,7 @@ estacao_meteorologica/
 
 ---
 
-## ⚙️ Instalação e Execução
+## Instalação e Execução
 
 ### 1. Pré-requisitos
 - Python 3.10 ou superior
@@ -160,7 +160,7 @@ curl -X DELETE http://localhost:5000/leituras/1
 
 ---
 
-## 🔬 Testando sem Arduino
+## Testando sem Arduino
 
 Para testar a API sem hardware, envie requisições manuais:
 
@@ -176,7 +176,7 @@ done
 
 ---
 
-## 📐 Circuito no Tinkercad
+## Circuito no Tinkercad
 
 ```
 TMP36
@@ -195,7 +195,7 @@ Clique no TMP36 durante a simulação para arrastar o slider de temperatura.
 
 ---
 
-## 📚 Referências
+## Referências
 
 - [Flask Documentation](https://flask.palletsprojects.com)
 - [PySerial Documentation](https://pyserial.readthedocs.io)
