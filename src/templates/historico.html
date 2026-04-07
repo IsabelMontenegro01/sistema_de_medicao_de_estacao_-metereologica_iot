@@ -1,0 +1,230 @@
+{% extends "base.html" %}
+{% block title %}Histórico — Estação Meteorológica IoT{% endblock %}
+
+{% block extra_head %}
+<style>
+  .page-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+  }
+
+  .table-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .table-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .table-info {
+    font-family: var(--mono);
+    font-size: .78rem;
+    color: var(--muted);
+  }
+
+  /* Coloração dos valores */
+  .val-temp { color: var(--accent);  font-weight: 500; }
+  .val-umid { color: var(--accent2); font-weight: 500; }
+
+  /* Ações da tabela */
+  .td-actions { display: flex; gap: .4rem; }
+
+  .btn-sm {
+    padding: .3rem .65rem;
+    font-size: .78rem;
+  }
+
+  /* Paginação */
+  .pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .4rem;
+    padding: 1.25rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .page-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px; height: 36px;
+    border-radius: var(--radius);
+    font-family: var(--mono);
+    font-size: .82rem;
+    text-decoration: none;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    transition: all .2s;
+  }
+
+  .page-btn:hover       { border-color: var(--accent); color: var(--accent); }
+  .page-btn.active      { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 700; }
+  .page-btn.disabled    { opacity: .3; pointer-events: none; }
+
+  /* Modal de confirmação */
+  .modal-overlay {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.7);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 2rem;
+    max-width: 380px;
+    width: 90%;
+  }
+
+  .modal h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: .75rem; }
+  .modal p  { color: var(--muted); font-size: .9rem; margin-bottom: 1.5rem; }
+  .modal-actions { display: flex; gap: .75rem; justify-content: flex-end; }
+
+  .empty-row td { text-align: center; color: var(--muted); font-family: var(--mono); padding: 2.5rem !important; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- ── Cabeçalho ───────────────────────────────────────────────────────────── -->
+<div class="page-header">
+  <div>
+    <h1 style="font-size:1.6rem;font-weight:800;letter-spacing:-.03em;">Histórico de Leituras</h1>
+    <p class="text-muted text-sm mt-4" style="font-family:var(--mono)">Total: {{ total }} registros</p>
+  </div>
+  <a href="/" class="btn btn-ghost">← Voltar ao Painel</a>
+</div>
+
+<!-- ── Tabela ─────────────────────────────────────────────────────────────── -->
+<div class="table-card">
+  <div class="table-toolbar">
+    <span class="table-info">
+      Página {{ pagina }} de {{ total_paginas }}
+    </span>
+    <a href="/leituras?formato=json" class="btn btn-ghost btn-sm" target="_blank">
+      { } JSON
+    </a>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Temperatura</th>
+        <th>Umidade</th>
+        <th>Pressão</th>
+        <th>Localização</th>
+        <th>Timestamp</th>
+        <th>Ações</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% if leituras %}
+        {% for l in leituras %}
+        <tr>
+          <td><span class="mono text-muted">#{{ l['id'] }}</span></td>
+          <td><span class="val-temp">{{ l['temperatura'] }} °C</span></td>
+          <td><span class="val-umid">{{ l['umidade'] }} %</span></td>
+          <td class="text-muted">
+            {% if l['pressao'] %}{{ l['pressao'] }} hPa{% else %}—{% endif %}
+          </td>
+          <td>
+            {% if l['localizacao'] %}<span class="badge">{{ l['localizacao'] }}</span>{% else %}—{% endif %}
+          </td>
+          <td><span class="mono text-muted" style="font-size:.78rem">{{ l['timestamp'] }}</span></td>
+          <td>
+            <div class="td-actions">
+              <a href="/leituras/{{ l['id'] }}/editar" class="btn btn-ghost btn-sm">Editar</a>
+              <button class="btn btn-danger btn-sm"
+                      onclick="confirmarDelete({{ l['id'] }})">Excluir</button>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      {% else %}
+        <tr class="empty-row"><td colspan="7">Nenhuma leitura encontrada.</td></tr>
+      {% endif %}
+    </tbody>
+  </table>
+
+  <!-- ── Paginação ──────────────────────────────────────────────────────── -->
+  {% if total_paginas > 1 %}
+  <div class="pagination">
+    <a href="?pagina={{ pagina - 1 }}" class="page-btn {{ 'disabled' if pagina <= 1 }}">‹</a>
+
+    {% for p in range(1, total_paginas + 1) %}
+      {% if p == pagina %}
+        <span class="page-btn active">{{ p }}</span>
+      {% elif p <= 3 or p >= total_paginas - 2 or (p >= pagina - 1 and p <= pagina + 1) %}
+        <a href="?pagina={{ p }}" class="page-btn">{{ p }}</a>
+      {% elif p == 4 or p == total_paginas - 3 %}
+        <span class="page-btn disabled" style="border:none">…</span>
+      {% endif %}
+    {% endfor %}
+
+    <a href="?pagina={{ pagina + 1 }}" class="page-btn {{ 'disabled' if pagina >= total_paginas }}">›</a>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ── Modal de confirmação de exclusão ──────────────────────────────────── -->
+<div class="modal-overlay" id="modal-delete">
+  <div class="modal">
+    <h3>Confirmar exclusão</h3>
+    <p>Tem certeza que deseja excluir a leitura <strong id="modal-id"></strong>? Esta ação não pode ser desfeita.</p>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="fecharModal()">Cancelar</button>
+      <button class="btn btn-danger" id="btn-confirmar-delete">Excluir</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let idParaDeletar = null;
+
+  function confirmarDelete(id) {
+    idParaDeletar = id;
+    document.getElementById('modal-id').textContent = `#${id}`;
+    document.getElementById('modal-delete').classList.add('open');
+  }
+
+  function fecharModal() {
+    document.getElementById('modal-delete').classList.remove('open');
+    idParaDeletar = null;
+  }
+
+  document.getElementById('btn-confirmar-delete').addEventListener('click', async () => {
+    if (!idParaDeletar) return;
+
+    const res = await fetch(`/leituras/${idParaDeletar}`, { method: 'DELETE' });
+
+    if (res.ok) {
+      // Remove a linha da tabela sem recarregar a página
+      fecharModal();
+      location.reload();
+    } else {
+      alert('Erro ao excluir a leitura.');
+      fecharModal();
+    }
+  });
+
+  // Fecha modal ao clicar fora
+  document.getElementById('modal-delete').addEventListener('click', function(e) {
+    if (e.target === this) fecharModal();
+  });
+</script>
+{% endblock %}

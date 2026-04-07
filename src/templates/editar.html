@@ -1,0 +1,174 @@
+{% extends "base.html" %}
+{% block title %}Editar Leitura #{{ leitura['id'] }} — Estação Meteorológica IoT{% endblock %}
+
+{% block extra_head %}
+<style>
+  .edit-container {
+    max-width: 500px;
+    margin: 0 auto;
+  }
+
+  .edit-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 2rem;
+  }
+
+  .edit-card h2 {
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin-bottom: .35rem;
+  }
+
+  .edit-meta {
+    font-family: var(--mono);
+    font-size: .75rem;
+    color: var(--muted);
+    margin-bottom: 1.75rem;
+    padding-bottom: 1.25rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .form-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: .75rem;
+    margin-top: 1.75rem;
+    padding-top: 1.25rem;
+    border-top: 1px solid var(--border);
+  }
+
+  .field-hint {
+    font-family: var(--mono);
+    font-size: .7rem;
+    color: var(--muted);
+    margin-top: .25rem;
+  }
+
+  .success-msg {
+    background: rgba(0,212,170,.1);
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    border-radius: var(--radius);
+    padding: .75rem 1rem;
+    font-size: .875rem;
+    margin-bottom: 1rem;
+    display: none;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="edit-container">
+
+  <div style="margin-bottom:1.25rem;">
+    <a href="/leituras" class="btn btn-ghost" style="font-size:.82rem;">← Voltar ao Histórico</a>
+  </div>
+
+  <div class="edit-card">
+    <h2>Editar Leitura</h2>
+    <div class="edit-meta">
+      ID: #{{ leitura['id'] }} &nbsp;·&nbsp; Registrada em: {{ leitura['timestamp'] }}
+    </div>
+
+    <div class="success-msg" id="success-msg">
+      ✓ Leitura atualizada com sucesso!
+    </div>
+
+    <!-- Formulário — usa fetch/PUT via JavaScript -->
+    <div>
+      <div class="form-grid">
+        <div class="field">
+          <label for="temperatura">TEMPERATURA</label>
+          <input type="number" id="temperatura" name="temperatura"
+                 value="{{ leitura['temperatura'] }}"
+                 step="0.1" min="-40" max="85" />
+          <span class="field-hint">Faixa: -40 a 85 °C</span>
+        </div>
+
+        <div class="field">
+          <label for="umidade">UMIDADE</label>
+          <input type="number" id="umidade" name="umidade"
+                 value="{{ leitura['umidade'] }}"
+                 step="0.1" min="0" max="100" />
+          <span class="field-hint">Faixa: 0 a 100 %</span>
+        </div>
+      </div>
+
+      <div class="form-grid">
+        <div class="field">
+          <label for="pressao">PRESSÃO <span style="font-weight:400;color:var(--muted)">(opcional)</span></label>
+          <input type="number" id="pressao" name="pressao"
+                 value="{{ leitura['pressao'] if leitura['pressao'] else '' }}"
+                 step="0.1" min="800" max="1200" />
+          <span class="field-hint">Faixa: 800 a 1200 hPa</span>
+        </div>
+
+        <div class="field">
+          <label for="localizacao">LOCALIZAÇÃO</label>
+          <input type="text" id="localizacao" name="localizacao"
+                 value="{{ leitura['localizacao'] or '' }}"
+                 maxlength="100" />
+          <span class="field-hint">Ex: Lab Tinkercad</span>
+        </div>
+      </div>
+
+      <div class="form-footer">
+        <a href="/leituras" class="btn btn-ghost">Cancelar</a>
+        <button class="btn btn-primary" onclick="salvarEdicao({{ leitura['id'] }})">
+          Salvar alterações
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+async function salvarEdicao(id) {
+  const dados = {
+    temperatura: parseFloat(document.getElementById('temperatura').value),
+    umidade:     parseFloat(document.getElementById('umidade').value),
+    localizacao: document.getElementById('localizacao').value,
+  };
+
+  // Pressão é opcional — só envia se preenchida
+  const pressaoVal = document.getElementById('pressao').value;
+  if (pressaoVal !== '') {
+    dados.pressao = parseFloat(pressaoVal);
+  }
+
+  // Validação básica no cliente
+  if (isNaN(dados.temperatura) || isNaN(dados.umidade)) {
+    alert('Temperatura e umidade são obrigatórios.');
+    return;
+  }
+
+  try {
+    const res = await fetch(`/leituras/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(dados)
+    });
+
+    if (res.ok) {
+      const msg = document.getElementById('success-msg');
+      msg.style.display = 'block';
+      setTimeout(() => { window.location.href = '/leituras'; }, 1200);
+    } else {
+      const erro = await res.json();
+      alert(`Erro: ${erro.erro || 'Não foi possível atualizar.'}`);
+    }
+  } catch (e) {
+    alert('Erro de conexão com o servidor.');
+  }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,346 @@
+{% extends "base.html" %}
+{% block title %}Painel — Estação Meteorológica IoT{% endblock %}
+
+{% block extra_head %}
+  <!-- Chart.js para o gráfico de variação temporal -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    /* ── Grid de estatísticas ──────────────────────────────────────────── */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .stat-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem 1.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+    }
+    .stat-card.temp::before  { background: var(--accent); }
+    .stat-card.umid::before  { background: var(--accent2); }
+    .stat-card.total::before { background: #6366f1; }
+
+    .stat-label {
+      font-size: .72rem;
+      font-family: var(--mono);
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin-bottom: .5rem;
+    }
+
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -.03em;
+    }
+
+    .stat-card.temp .stat-value  { color: var(--accent); }
+    .stat-card.umid .stat-value  { color: var(--accent2); }
+    .stat-card.total .stat-value { color: #818cf8; }
+
+    .stat-sub {
+      font-size: .75rem;
+      color: var(--muted);
+      margin-top: .4rem;
+      font-family: var(--mono);
+    }
+
+    /* ── Seção do gráfico ──────────────────────────────────────────────── */
+    .chart-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.25rem;
+    }
+
+    .section-title {
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: -.01em;
+    }
+
+    canvas { max-height: 280px; }
+
+    /* ── Cards das últimas leituras ────────────────────────────────────── */
+    .leituras-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+      gap: 1rem;
+    }
+
+    .leitura-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.25rem;
+      transition: border-color .2s, transform .2s;
+    }
+
+    .leitura-card:hover {
+      border-color: rgba(0,212,170,.3);
+      transform: translateY(-2px);
+    }
+
+    .leitura-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1rem;
+    }
+
+    .leitura-id { font-family: var(--mono); font-size: .75rem; color: var(--muted); }
+    .leitura-ts { font-family: var(--mono); font-size: .7rem; color: var(--muted); text-align: right; }
+
+    .leitura-valores {
+      display: flex;
+      gap: 1.5rem;
+    }
+
+    .valor-grupo {}
+    .valor-label { font-size: .65rem; font-family: var(--mono); color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
+    .valor-num   { font-size: 1.6rem; font-weight: 800; letter-spacing: -.03em; line-height: 1.1; }
+    .valor-unit  { font-size: .75rem; color: var(--muted); }
+
+    .valor-num.temp { color: var(--accent); }
+    .valor-num.umid { color: var(--accent2); }
+
+    /* ── Indicador de atualização ─────────────────────────────────────── */
+    .refresh-bar {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      font-family: var(--mono);
+      font-size: .75rem;
+      color: var(--muted);
+    }
+    .refresh-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 2s infinite;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem;
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: .9rem;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+<!-- ── Cabeçalho ───────────────────────────────────────────────────────────── -->
+<div class="flex items-center justify-between mb-6">
+  <div>
+    <h1 style="font-size:1.6rem;font-weight:800;letter-spacing:-.03em;">Painel de Controle</h1>
+    <p class="text-muted text-sm mt-4" style="font-family:var(--mono)">Últimas leituras da estação meteorológica</p>
+  </div>
+  <div class="refresh-bar">
+    <span class="refresh-dot"></span>
+    <span id="ultimo-update">Atualizando...</span>
+    <button class="btn btn-ghost" onclick="atualizarDados()" style="margin-left:.5rem;">↻ Atualizar</button>
+  </div>
+</div>
+
+<!-- ── Cards de estatísticas ──────────────────────────────────────────────── -->
+{% if stats and stats.total_leituras %}
+<div class="stats-grid">
+  <div class="stat-card temp">
+    <div class="stat-label">Temp. Média</div>
+    <div class="stat-value">{{ stats.temp_media }}°</div>
+    <div class="stat-sub">Mín {{ stats.temp_min }}° / Máx {{ stats.temp_max }}°</div>
+  </div>
+  <div class="stat-card umid">
+    <div class="stat-label">Umid. Média</div>
+    <div class="stat-value">{{ stats.umid_media }}%</div>
+    <div class="stat-sub">Mín {{ stats.umid_min }}% / Máx {{ stats.umid_max }}%</div>
+  </div>
+  <div class="stat-card total">
+    <div class="stat-label">Total de Leituras</div>
+    <div class="stat-value">{{ stats.total_leituras }}</div>
+    <div class="stat-sub">No banco de dados</div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Gráfico de variação temporal ──────────────────────────────────────── -->
+<div class="chart-card">
+  <div class="section-header">
+    <span class="section-title">Variação Temporal</span>
+    <div style="display:flex;gap:.5rem">
+      <select id="grafico-n" onchange="carregarGrafico()"
+        style="background:var(--bg);border:1px solid var(--border);color:var(--text);padding:.3rem .6rem;border-radius:var(--radius);font-family:var(--mono);font-size:.8rem;">
+        <option value="20">Últimas 20</option>
+        <option value="50" selected>Últimas 50</option>
+        <option value="100">Últimas 100</option>
+      </select>
+    </div>
+  </div>
+  <canvas id="grafico"></canvas>
+</div>
+
+<!-- ── Últimas leituras em cards ─────────────────────────────────────────── -->
+<div class="section-header">
+  <span class="section-title">Leituras Recentes</span>
+  <a href="/leituras" class="btn btn-ghost">Ver histórico completo →</a>
+</div>
+
+{% if leituras %}
+<div class="leituras-grid" id="leituras-container">
+  {% for l in leituras %}
+  <div class="leitura-card">
+    <div class="leitura-card-header">
+      <span class="leitura-id">#{{ l['id'] }}</span>
+      <span class="leitura-ts">{{ l['timestamp'] }}</span>
+    </div>
+    <div class="leitura-valores">
+      <div class="valor-grupo">
+        <div class="valor-label">Temperatura</div>
+        <div class="valor-num temp">{{ l['temperatura'] }}<span class="valor-unit">°C</span></div>
+      </div>
+      <div class="valor-grupo">
+        <div class="valor-label">Umidade</div>
+        <div class="valor-num umid">{{ l['umidade'] }}<span class="valor-unit">%</span></div>
+      </div>
+    </div>
+    {% if l['localizacao'] %}
+    <div style="margin-top:.75rem;">
+      <span class="badge">{{ l['localizacao'] }}</span>
+    </div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  Nenhuma leitura encontrada.<br>
+  Inicie o Arduino e o serial_reader.py para começar.
+</div>
+{% endif %}
+
+<!-- ── JavaScript: Gráfico + Atualização automática ──────────────────────── -->
+<script>
+let grafico = null;
+
+function formatarTimestamp(ts) {
+  // Formata "2024-01-15 14:30:00" → "14:30"
+  return ts ? ts.slice(11, 16) : ts;
+}
+
+async function carregarGrafico() {
+  const n = document.getElementById('grafico-n').value;
+  const res = await fetch(`/api/leituras/grafico?n=${n}`);
+  const dados = await res.json();
+
+  const labels = dados.labels.map(formatarTimestamp);
+  const ctx = document.getElementById('grafico').getContext('2d');
+
+  if (grafico) grafico.destroy();
+
+  grafico = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Temperatura (°C)',
+          data: dados.temperatura,
+          borderColor: '#00d4aa',
+          backgroundColor: 'rgba(0,212,170,.08)',
+          borderWidth: 2,
+          pointRadius: 3,
+          pointBackgroundColor: '#00d4aa',
+          tension: 0.4,
+          yAxisID: 'y',
+        },
+        {
+          label: 'Umidade (%)',
+          data: dados.umidade,
+          borderColor: '#ff6b35',
+          backgroundColor: 'rgba(255,107,53,.08)',
+          borderWidth: 2,
+          pointRadius: 3,
+          pointBackgroundColor: '#ff6b35',
+          tension: 0.4,
+          yAxisID: 'y1',
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: {
+          labels: { color: '#64748b', font: { family: 'IBM Plex Mono', size: 11 } }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#64748b', font: { family: 'IBM Plex Mono', size: 10 }, maxTicksLimit: 10 },
+          grid: { color: '#1f2430' }
+        },
+        y: {
+          type: 'linear', position: 'left',
+          title: { display: true, text: '°C', color: '#00d4aa', font: { size: 11 } },
+          ticks: { color: '#00d4aa', font: { family: 'IBM Plex Mono', size: 10 } },
+          grid: { color: '#1f2430' }
+        },
+        y1: {
+          type: 'linear', position: 'right',
+          title: { display: true, text: '%', color: '#ff6b35', font: { size: 11 } },
+          ticks: { color: '#ff6b35', font: { family: 'IBM Plex Mono', size: 10 } },
+          grid: { drawOnChartArea: false }
+        }
+      }
+    }
+  });
+}
+
+async function atualizarDados() {
+  // Recarrega os cards de leitura recente via fetch
+  const res = await fetch('/?formato=json');
+  const dados = await res.json();
+
+  // Atualiza o indicador de tempo
+  const agora = new Date().toLocaleTimeString('pt-BR');
+  document.getElementById('ultimo-update').textContent = `Última atualização: ${agora}`;
+
+  // Recarrega o gráfico
+  carregarGrafico();
+}
+
+// ── Inicialização ─────────────────────────────────────────────────────────────
+carregarGrafico();
+
+// Atualização automática a cada 10 segundos
+setInterval(atualizarDados, 10000);
+
+// Timestamp inicial
+document.getElementById('ultimo-update').textContent =
+  `Última atualização: ${new Date().toLocaleTimeString('pt-BR')}`;
+</script>
+{% endblock %}
