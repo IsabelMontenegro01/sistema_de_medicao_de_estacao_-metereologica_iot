@@ -18,8 +18,8 @@ SCHEMA_PATH = os.path.join(BASE_DIR, 'schema.sql')
 
 
 def init_db():
-    with open(SCHEMA_PATH, 'r') as f:
-        schema = f.read()
+    with open('schema.sql', encoding='utf-8') as f:
+     schema = f.read()
     conn = sqlite3.connect(DB_PATH)
     conn.executescript(schema)
     conn.commit()
