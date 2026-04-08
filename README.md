@@ -23,7 +23,7 @@ python app.py
 # Acesse: http://localhost:5000
 ```
 
-Para leitura serial com Arduino físico, veja a [documentação completa](docs/DOCUMENTACAO.md).
+Para leitura serial com Arduino físico, veja a [documentação completa](docs/documentacao.md).
 
 ---
 
